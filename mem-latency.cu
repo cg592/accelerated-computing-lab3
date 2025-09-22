@@ -8,6 +8,7 @@
 
 #include <cuda_runtime.h>
 #include <iostream>
+#include <cassert>
 
 using data_type = float;
 
@@ -19,6 +20,7 @@ __attribute__((optimize("O0"))) __global__ void l1_mem_latency(
     unsigned long *time_end,
     data_type *array_1,
     data_type *array_2) {
+
     unsigned long start_time, end_time;
     data_type value1 = 0.0f, result;
     unsigned long temp_addr;
@@ -31,7 +33,7 @@ __attribute__((optimize("O0"))) __global__ void l1_mem_latency(
         // Measure memory load latency
         "mov.u64 %1, %%clock64;\n\t"
 
-        // <!-- TODO: your code here -->
+        "ld.global.ca.f32 %2, [%0];\n\t"
 
         "mov.u64 %4, %%clock64;\n\t"
 
@@ -53,12 +55,18 @@ __attribute__((optimize("O0"))) __global__ void l2_mem_latency(
     unsigned long *time_end,
     data_type *array_1,
     data_type *array_2) {
+
     unsigned long start_time, end_time;
     data_type value1 = 0.0f, result;
     unsigned long temp_addr;
+    // unsigned long temp_addr1 = 0ull;
 
     asm volatile(
         // L2 cache setup - load a zero and create offset address
+        // "ld.global.cg.u64 %0, [%6];\n\t"
+        // "add.u64 %0, %0, %6;\n\t"
+        // "st.global.f32 []"
+
         "ld.global.cg.u64 %0, [%5];\n\t"
         "add.u64 %0, %0, %5;\n\t"
         "membar.gl;\n\t"
@@ -66,7 +74,7 @@ __attribute__((optimize("O0"))) __global__ void l2_mem_latency(
         // Measure memory load latency
         "mov.u64 %1, %%clock64;\n\t"
 
-        // <!-- TODO: your code here -->
+        "ld.global.cg.f32 %2, [%0];\n\t"
 
         "mov.u64 %4, %%clock64;\n\t"
 
@@ -96,7 +104,7 @@ __attribute__((optimize("O0"))) __global__ void global_mem_latency(
         "membar.gl;\n\t"
         "mov.u64 %0, %%clock64;\n\t"
 
-        // <!-- TODO: your code here -->
+        "ld.global.cg.f32 %1, [%3];\n\t"
 
         "mov.u64 %4, %%clock64;\n\t"
         "st.global.f32 [%3], %1;\n\t"
@@ -146,6 +154,7 @@ __attribute__((optimize("O0"))) __global__ void global_mem_latency(
     } while (0)
 
 int main() {
+    
     // Initialize CUDA and allocate device memory
     unsigned long *d_time_start = nullptr;
     unsigned long *d_time_end = nullptr;
@@ -162,6 +171,8 @@ int main() {
 
     CUDA_CHECK(
         cudaMemcpy(array_2, &host_zero, sizeof(data_type), cudaMemcpyHostToDevice));
+    CUDA_CHECK(
+        cudaMemcpy(&array_2[1], &host_zero, sizeof(data_type), cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(
         d_time_start,
         &host_init_time,
@@ -173,9 +184,21 @@ int main() {
         sizeof(unsigned long),
         cudaMemcpyHostToDevice));
 
-    run_kernel_and_print(global_mem_latency);
-    run_kernel_and_print(l2_mem_latency);
     run_kernel_and_print(l1_mem_latency);
+    run_kernel_and_print(l2_mem_latency);
+    run_kernel_and_print(global_mem_latency);
+
+    // float *host_array_copy = new float[60];
+    // CUDA_CHECK(cudaMemcpy(
+    //     host_array_copy,
+    //     array_2,
+    //     sizeof(data_type) * 60,
+    //     cudaMemcpyDeviceToHost));
+    // for (int i = 0; i < 10; i++) {
+    //     std::cout << host_array_copy[i] << " ";
+    // }
+    // std::cout << std::endl;
+    // delete[] host_array_copy;
 
     // Clean up device memory
     CUDA_CHECK(cudaFree(d_time_start));

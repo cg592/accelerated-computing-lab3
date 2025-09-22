@@ -14,7 +14,7 @@
 using data_type = float;
 
 #define THREADS_PER_WARP 32
-#define WARPS 128
+#define WARPS 128 // confusing name: this is really the number of blocks
 #define X 1024 // elements per thread
 
 static constexpr size_t kNumOfOuterIterations = 5;
@@ -24,16 +24,24 @@ static constexpr size_t kNumOfInnerIterations = 3;
 // Non-Coalesced Memory Access Pattern
 
 __global__ void non_coalesced_load(data_type *dst, data_type *src, int x) {
-
-    // <!-- TODO: your code here -->
+    int block_start_idx = blockIdx.x * blockDim.x * x;
+    int start_idx = block_start_idx + threadIdx.x * x;
+    int end_idx = start_idx + x;
+    for (int i = start_idx; i < end_idx; i++) {
+        dst[i] = src[i];
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Coalesced Memory Access Pattern
 
 __global__ void coalesced_load(data_type *dst, data_type *src, int x) {
-
-    // <!-- TODO: your code here -->
+    int block_start_idx = blockIdx.x * blockDim.x * x;
+    int block_end_idx = block_start_idx + blockDim.x * x;
+    int start_idx = block_start_idx + threadIdx.x;
+    for (int i = start_idx; i < block_end_idx; i += blockDim.x) {
+        dst[i] = src[i];
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
