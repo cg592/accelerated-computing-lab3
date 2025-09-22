@@ -117,9 +117,45 @@ template <typename Scene>
 __global__ void wave_gpu_naive_step(
     float t,
     float *u0,      /* pointer to GPU memory */
-    float const *u1 /* pointer to GPU memory */
+    float const *u1, /* pointer to GPU memory */
+    int BLOCK_CHUNK_X,
+    int BLOCK_CHUNK_Y
 ) {
-    /* TODO: your GPU code here... */
+    constexpr int32_t n_cells_x = Scene::n_cells_x;
+    constexpr int32_t n_cells_y = Scene::n_cells_y;
+    constexpr float c = Scene::c;
+    constexpr float dx = Scene::dx;
+    constexpr float dt = Scene::dt;
+
+    int block_start_x = blockIdx.x * BLOCK_CHUNK_X;
+    int block_start_y = blockIdx.y * BLOCK_CHUNK_Y;
+    int block_end_x = block_start_x + BLOCK_CHUNK_X;
+    int block_end_y = block_start_y + BLOCK_CHUNK_Y;
+
+    for (int32_t idx_y = block_start_y; idx_y < block_end_y && idx_y < n_cells_y; idx_y++) {
+        for (int32_t idx_x = block_start_x; idx_x < block_end_x && idx_x < n_cells_x; idx_x++) {
+            int32_t idx = idx_y * n_cells_x + idx_x;
+            bool is_border =
+                (idx_x == 0 || idx_x == n_cells_x - 1 || idx_y == 0 ||
+                 idx_y == n_cells_y - 1);
+            float u_next_val;
+            if (is_border || Scene::is_wall(idx_x, idx_y)) {
+                u_next_val = 0.0f;
+            } else if (Scene::is_source(idx_x, idx_y)) {
+                u_next_val = Scene::source_value(idx_x, idx_y, t);
+            } else {
+                constexpr float coeff = c * c * dt * dt / (dx * dx);
+                float damping = Scene::damping(idx_x, idx_y);
+                u_next_val =
+                    ((2.0f - damping - 4.0f * coeff) * u1[idx] -
+                     (1.0f - damping) * u0[idx] +
+                     coeff *
+                         (u1[idx - 1] + u1[idx + 1] + u1[idx - n_cells_x] +
+                          u1[idx + n_cells_x]));
+            }
+            u0[idx] = u_next_val;
+        }
+    }
 }
 
 // 'wave_gpu_naive':
@@ -146,7 +182,25 @@ std::pair<float *, float *> wave_gpu_naive(
     float *u0, /* pointer to GPU memory */
     float *u1  /* pointer to GPU memory */
 ) {
-    /* TODO: your CPU code here... */
+    int BLOCK_CHUNK_Y = ceil(Scene::n_cells_y / 8.0f);
+    int BLOCK_CHUNK_X = ceil(Scene::n_cells_x / 6.0f);
+
+    dim3 num_blocks(6, 8);
+    // dim3 block_size(BLOCK_CHUNK_X, 1);
+    dim3 block_size(1, 1);
+
+    std::cout << "Scene::n_cells_x: " << Scene::n_cells_x << std::endl;
+    std::cout << "Scene::n_cells_y: " << Scene::n_cells_y << std::endl;
+    std::cout << "BLOCK_CHUNK_X: " << BLOCK_CHUNK_X << std::endl;
+    std::cout << "BLOCK_CHUNK_Y: " << BLOCK_CHUNK_Y << std::endl;
+    std::cout << "num_blocks: " << num_blocks.x << ", " << num_blocks.y << std::endl;
+    std::cout << "block_size: " << block_size.x << ", " << block_size.y << std::endl;
+
+    for (int32_t idx_step = 0; idx_step < n_steps; idx_step++) {
+        float t = t0 + idx_step * Scene::dt;
+        wave_gpu_naive_step<Scene><<<num_blocks, block_size>>>(t, u0, u1, BLOCK_CHUNK_X, BLOCK_CHUNK_Y);
+        std::swap(u0, u1);
+    }
     return {u0, u1};
 }
 
@@ -600,6 +654,7 @@ double rel_rmse(std::vector<float> const &a, std::vector<float> const &b) {
         double diff = double(a.at(i)) - double(b.at(i));
         sum += diff * diff;
     }
+    printf("ref_sum: %f, sum: %f\n", ref_sum, sum);
     return sqrt(sum / a.size()) / sqrt(ref_sum / a.size());
 }
 
