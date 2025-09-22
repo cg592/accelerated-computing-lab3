@@ -131,9 +131,10 @@ __global__ void wave_gpu_naive_step(
     int block_start_y = blockIdx.y * BLOCK_CHUNK_Y;
     int block_end_x = block_start_x + BLOCK_CHUNK_X;
     int block_end_y = block_start_y + BLOCK_CHUNK_Y;
+    int thread_start_x = block_start_x + threadIdx.x;
 
     for (int32_t idx_y = block_start_y; idx_y < block_end_y && idx_y < n_cells_y; idx_y++) {
-        for (int32_t idx_x = block_start_x; idx_x < block_end_x && idx_x < n_cells_x; idx_x++) {
+        for (int32_t idx_x = thread_start_x; idx_x < block_end_x && idx_x < n_cells_x; idx_x+=blockDim.x) {
             int32_t idx = idx_y * n_cells_x + idx_x;
             bool is_border =
                 (idx_x == 0 || idx_x == n_cells_x - 1 || idx_y == 0 ||
@@ -186,15 +187,14 @@ std::pair<float *, float *> wave_gpu_naive(
     int BLOCK_CHUNK_X = ceil(Scene::n_cells_x / 6.0f);
 
     dim3 num_blocks(6, 8);
-    // dim3 block_size(BLOCK_CHUNK_X, 1);
-    dim3 block_size(1, 1);
+    dim3 block_size(BLOCK_CHUNK_X, 1);
 
-    std::cout << "Scene::n_cells_x: " << Scene::n_cells_x << std::endl;
-    std::cout << "Scene::n_cells_y: " << Scene::n_cells_y << std::endl;
-    std::cout << "BLOCK_CHUNK_X: " << BLOCK_CHUNK_X << std::endl;
-    std::cout << "BLOCK_CHUNK_Y: " << BLOCK_CHUNK_Y << std::endl;
-    std::cout << "num_blocks: " << num_blocks.x << ", " << num_blocks.y << std::endl;
-    std::cout << "block_size: " << block_size.x << ", " << block_size.y << std::endl;
+    // std::cout << "Scene::n_cells_x: " << Scene::n_cells_x << std::endl;
+    // std::cout << "Scene::n_cells_y: " << Scene::n_cells_y << std::endl;
+    // std::cout << "BLOCK_CHUNK_X: " << BLOCK_CHUNK_X << std::endl;
+    // std::cout << "BLOCK_CHUNK_Y: " << BLOCK_CHUNK_Y << std::endl;
+    // std::cout << "num_blocks: " << num_blocks.x << ", " << num_blocks.y << std::endl;
+    // std::cout << "block_size: " << block_size.x << ", " << block_size.y << std::endl;
 
     for (int32_t idx_step = 0; idx_step < n_steps; idx_step++) {
         float t = t0 + idx_step * Scene::dt;
@@ -654,7 +654,6 @@ double rel_rmse(std::vector<float> const &a, std::vector<float> const &b) {
         double diff = double(a.at(i)) - double(b.at(i));
         sum += diff * diff;
     }
-    printf("ref_sum: %f, sum: %f\n", ref_sum, sum);
     return sqrt(sum / a.size()) / sqrt(ref_sum / a.size());
 }
 
