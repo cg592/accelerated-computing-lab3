@@ -59,15 +59,15 @@ template <typename Scene> void wave_cpu_step(float t, float *u0, float const *u1
                  idx_y == n_cells_y - 1);
             float u_next_val;
             if (is_border || Scene::is_wall(idx_x, idx_y)) {
-                if (idx == DEBUG_IDX && iter == DEBUG_ITER + 1) {
-                    printf("CPU border or wall for idx %d\n", idx);
-                }
+                // if (idx == DEBUG_IDX && iter == DEBUG_ITER + 1) {
+                //     printf("CPU border or wall for idx %d\n", idx);
+                // }
                 u_next_val = 0.0f;
             } else if (Scene::is_source(idx_x, idx_y)) {
                 u_next_val = Scene::source_value(idx_x, idx_y, t);
-                if (idx == DEBUG_IDX && iter == DEBUG_ITER + 1) {
-                    printf("CPU sourcing value for idx %d is %f, grabbed with params %d, %d, %f\n", idx, u_next_val, idx_x, idx_y, t);
-                }
+                // if (idx == DEBUG_IDX && iter == DEBUG_ITER + 1) {
+                //     printf("CPU sourcing value for idx %d is %f, grabbed with params %d, %d, %f\n", idx, u_next_val, idx_x, idx_y, t);
+                // }
             } else {
                 constexpr float coeff = c * c * dt * dt / (dx * dx);
                 float damping = Scene::damping(idx_x, idx_y);
@@ -77,21 +77,21 @@ template <typename Scene> void wave_cpu_step(float t, float *u0, float const *u1
                      coeff *
                          (u1[idx - 1] + u1[idx + 1] + u1[idx - n_cells_x] +
                           u1[idx + n_cells_x]));
-                if (idx == DEBUG_IDX && iter == DEBUG_ITER + 1) {
-                    printf("CPU u0[%d] became %f\n", idx, u_next_val);
-                    printf("CPU u1[%d] = %f\n", idx, u1[idx]);
-                    printf("CPU u0[%d] = %f\n", idx, u0[idx]);
-                    printf("CPU coeff = %f, damping = %f\n", coeff, damping);
-                    printf("CPU u1[%d - 1] = %f\n", idx, u1[idx - 1]);
-                    printf("CPU u1[%d + 1] = %f\n", idx, u1[idx + 1]);
-                    printf("CPU u1[%d - n_cells_x] = %f\n", idx, u1[idx - n_cells_x]);
-                    printf("CPU u1[%d + n_cells_x] = %f\n", idx, u1[idx + n_cells_x]);
-                }
+                // if (idx == DEBUG_IDX && iter == DEBUG_ITER + 1) {
+                //     printf("CPU u0[%d] became %f\n", idx, u_next_val);
+                //     printf("CPU u1[%d] = %f\n", idx, u1[idx]);
+                //     printf("CPU u0[%d] = %f\n", idx, u0[idx]);
+                //     printf("CPU coeff = %f, damping = %f\n", coeff, damping);
+                //     printf("CPU u1[%d - 1] = %f\n", idx, u1[idx - 1]);
+                //     printf("CPU u1[%d + 1] = %f\n", idx, u1[idx + 1]);
+                //     printf("CPU u1[%d - n_cells_x] = %f\n", idx, u1[idx - n_cells_x]);
+                //     printf("CPU u1[%d + n_cells_x] = %f\n", idx, u1[idx + n_cells_x]);
+                // }
             }
             u0[idx] = u_next_val;
-            if (idx == DEBUG_IDX) {
-                printf("cpu writing back u0[%d] = %f on iter %d\n", idx, u_next_val, iter);
-            }
+            // if (idx == DEBUG_IDX) {
+            //     printf("cpu writing back u0[%d] = %f on iter %d\n", idx, u_next_val, iter);
+            // }
         }
     }
 }
@@ -119,9 +119,9 @@ std::pair<float *, float *> wave_cpu(float t0, int32_t n_steps, float *u0, float
         wave_cpu_step<Scene>(t, u0, u1, idx_step);
         std::swap(u0, u1);
         
-        if (idx_step == DEBUG_ITER_NEXT + 1) {
-            break;
-        }
+        // if (idx_step == DEBUG_ITER_NEXT + 1) {
+        //     break;
+        // }
     }
     return {u0, u1};
 }
@@ -216,12 +216,12 @@ std::pair<float *, float *> wave_gpu_naive(
     int NUM_BLOCKS_X = ceil(Scene::n_cells_x / (float)BLOCK_DIM_X);
     int NUM_BLOCKS_Y = ceil(Scene::n_cells_y / (float)BLOCK_DIM_Y);
 
-    std::cout << "Scene::n_cells_x: " << Scene::n_cells_x << std::endl;
-    std::cout << "Scene::n_cells_y: " << Scene::n_cells_y << std::endl;
-    std::cout << "NUM_BLOCKS_X: " << NUM_BLOCKS_X << std::endl;
-    std::cout << "NUM_BLOCKS_Y: " << NUM_BLOCKS_Y << std::endl;
-    std::cout << "BLOCK_DIM_X: " << BLOCK_DIM_X << std::endl;
-    std::cout << "BLOCK_DIM_Y: " << BLOCK_DIM_Y << std::endl;
+    // std::cout << "Scene::n_cells_x: " << Scene::n_cells_x << std::endl;
+    // std::cout << "Scene::n_cells_y: " << Scene::n_cells_y << std::endl;
+    // std::cout << "NUM_BLOCKS_X: " << NUM_BLOCKS_X << std::endl;
+    // std::cout << "NUM_BLOCKS_Y: " << NUM_BLOCKS_Y << std::endl;
+    // std::cout << "BLOCK_DIM_X: " << BLOCK_DIM_X << std::endl;
+    // std::cout << "BLOCK_DIM_Y: " << BLOCK_DIM_Y << std::endl;
 
     dim3 num_blocks(NUM_BLOCKS_X, NUM_BLOCKS_Y);
     dim3 block_size(BLOCK_DIM_X, BLOCK_DIM_Y);
@@ -318,18 +318,19 @@ __global__ void wave_gpu_shmem_multistep(
         int thread_compute_x = block_compute_start_x + threadIdx.x;
         int thread_compute_y = block_compute_start_y + threadIdx.y;
 
-        if (idx_step + local_timestep == DEBUG_ITER && thread_compute_x == DEBUG_IDX_X && thread_compute_y == DEBUG_IDX_Y) {
-            printf("GPU idx_step = %d, local_timestep = %d, init_t = %f, t = %f\n", idx_step, local_timestep, init_t, t);
-        }
+        // if (idx_step + local_timestep == DEBUG_ITER && thread_compute_x == DEBUG_IDX_X && thread_compute_y == DEBUG_IDX_Y) {
+        //     printf("GPU idx_step = %d, local_timestep = %d, init_t = %f, t = %f\n", idx_step, local_timestep, init_t, t);
+        // }
 
-        if (thread_compute_x == DEBUG_IDX_X && thread_compute_y == DEBUG_IDX_Y && idx_step + local_timestep == DEBUG_ITER) {
-            printf("GPU thread_compute_x = %d, thread_compute_y = %d\n", thread_compute_x, thread_compute_y);
-            printf("INBOUNDS(thread_compute_x, thread_compute_y) = %d\n", INBOUNDS(thread_compute_x, thread_compute_y));
-        }
+        // if (thread_compute_x == DEBUG_IDX_X && thread_compute_y == DEBUG_IDX_Y && idx_step + local_timestep == DEBUG_ITER) {
+        //     printf("GPU thread_compute_x = %d, thread_compute_y = %d\n", thread_compute_x, thread_compute_y);
+        //     printf("INBOUNDS(thread_compute_x, thread_compute_y) = %d\n", INBOUNDS(thread_compute_x, thread_compute_y));
+        // }
 
-        bool within_cur_timestep_compute_tile = threadIdx.x < useful_tile_dim_x + (timesteps_per_kernel - local_timestep - 1) && 
-                                                threadIdx.y < useful_tile_dim_y + (timesteps_per_kernel - local_timestep - 1);
-        if (INBOUNDS(thread_compute_x, thread_compute_y) && within_cur_timestep_compute_tile) {
+        // bool within_cur_timestep_compute_tile = threadIdx.x < useful_tile_dim_x + (timesteps_per_kernel - local_timestep - 1) && 
+        //                                         threadIdx.y < useful_tile_dim_y + (timesteps_per_kernel - local_timestep - 1);
+        // if (INBOUNDS(thread_compute_x, thread_compute_y) && within_cur_timestep_compute_tile) {
+        if (INBOUNDS(thread_compute_x, thread_compute_y)) {
             int32_t x_rel_load_block = local_timestep + 1 + threadIdx.x;
             int32_t y_rel_load_block = local_timestep + 1 + threadIdx.y;
             int32_t shmem_local_idx = y_rel_load_block * total_tile_dim_x + x_rel_load_block;
@@ -343,14 +344,14 @@ __global__ void wave_gpu_shmem_multistep(
             float u_next_val;
             if (is_border || Scene::is_wall(thread_compute_x, thread_compute_y)) {
                 u_next_val = 0.0f;
-                if (idx_step + local_timestep == DEBUG_ITER && thread_compute_x == DEBUG_IDX_X && thread_compute_y == DEBUG_IDX_Y) {
-                    printf("GPU is_border or wall\n");
-                }
+                // if (idx_step + local_timestep == DEBUG_ITER && thread_compute_x == DEBUG_IDX_X && thread_compute_y == DEBUG_IDX_Y) {
+                //     printf("GPU is_border or wall\n");
+                // }
             } else if (Scene::is_source(thread_compute_x, thread_compute_y)) {
                 u_next_val = Scene::source_value(thread_compute_x, thread_compute_y, t);
-                if (idx_step + local_timestep == DEBUG_ITER && thread_compute_x == DEBUG_IDX_X && thread_compute_y == DEBUG_IDX_Y) {
-                    printf("GPU sourcing value is %f, grabbed with params %d, %d, %f\n", u_next_val, thread_compute_x, thread_compute_y, t);
-                }
+                // if (idx_step + local_timestep == DEBUG_ITER && thread_compute_x == DEBUG_IDX_X && thread_compute_y == DEBUG_IDX_Y) {
+                //     printf("GPU sourcing value is %f, grabbed with params %d, %d, %f\n", u_next_val, thread_compute_x, thread_compute_y, t);
+                // }
             } else {
                 constexpr float coeff = c * c * dt * dt / (dx * dx);
                 float damping = Scene::damping(thread_compute_x, thread_compute_y);
@@ -360,49 +361,49 @@ __global__ void wave_gpu_shmem_multistep(
                         coeff *
                             (shmem[prev_idx - 1] + shmem[prev_idx + 1] + shmem[prev_idx - total_tile_dim_x] +
                             shmem[prev_idx + total_tile_dim_x]));
-                if (idx_step + local_timestep == DEBUG_ITER && thread_compute_x == DEBUG_IDX_X && thread_compute_y == DEBUG_IDX_Y) {
-                    printf("GPU doing real math\n");
-                }
+                // if (idx_step + local_timestep == DEBUG_ITER && thread_compute_x == DEBUG_IDX_X && thread_compute_y == DEBUG_IDX_Y) {
+                //     printf("GPU doing real math\n");
+                // }
             }
             shmem[curr_idx] = u_next_val;
 
-            if (idx_step + local_timestep == DEBUG_ITER && thread_compute_x == DEBUG_IDX_X && thread_compute_y == DEBUG_IDX_Y) {
-                printf("blockIdx.x = %d, blockIdx.y = %d, threadIdx.x = %d, threadIdx.y = %d\n \
-                        block_final_compute_start_x = %d, block_final_compute_start_y = %d\n \
-                        block_load_start_x = %d, block_load_start_y = %d\n \
-                        block_compute_start_x = %d, block_compute_start_y = %d\n \
-                        thread_compute_x = %d, thread_compute_y = %d, thread_compute_global_idx = %d\n \
-                        global_timestep = %d\n \
-                        x_rel_load_block = %d, y_rel_load_block = %d\n \
-                        shmem_local_idx = %d\n \
-                        double_prev_idx = %d, prev_idx = %d, curr_idx = %d\n \
-                        is_border = %d\n \
-                        u_next_val = %f\n \
-                        shmem[prev_idx] = %f\n \
-                        shmem[double_prev_idx] = %f\n \
-                        shmem[prev_idx - 1] = %f\n \
-                        shmem[prev_idx + 1] = %f\n \
-                        shmem[prev_idx - total_tile_dim_x] = %f\n \
-                        shmem[prev_idx + total_tile_dim_x] = %f\n",
-                    blockIdx.x, blockIdx.y, threadIdx.x, threadIdx.y,
-                    block_final_compute_start_x, block_final_compute_start_y,
-                    block_load_start_x, block_load_start_y,
-                    block_compute_start_x, block_compute_start_y,
-                    thread_compute_x, thread_compute_y,
-                    thread_compute_y * n_cells_x + thread_compute_x,
-                    idx_step + local_timestep,
-                    x_rel_load_block, y_rel_load_block,
-                    shmem_local_idx,
-                    double_prev_idx, prev_idx, curr_idx,
-                    is_border,
-                    u_next_val,
-                    shmem[prev_idx],
-                    shmem[double_prev_idx],
-                    shmem[prev_idx - 1],
-                    shmem[prev_idx + 1],
-                    shmem[prev_idx - total_tile_dim_x],
-                    shmem[prev_idx + total_tile_dim_x]);
-            }
+            // if (idx_step + local_timestep == DEBUG_ITER && thread_compute_x == DEBUG_IDX_X && thread_compute_y == DEBUG_IDX_Y) {
+            //     printf("blockIdx.x = %d, blockIdx.y = %d, threadIdx.x = %d, threadIdx.y = %d\n \
+            //             block_final_compute_start_x = %d, block_final_compute_start_y = %d\n \
+            //             block_load_start_x = %d, block_load_start_y = %d\n \
+            //             block_compute_start_x = %d, block_compute_start_y = %d\n \
+            //             thread_compute_x = %d, thread_compute_y = %d, thread_compute_global_idx = %d\n \
+            //             global_timestep = %d\n \
+            //             x_rel_load_block = %d, y_rel_load_block = %d\n \
+            //             shmem_local_idx = %d\n \
+            //             double_prev_idx = %d, prev_idx = %d, curr_idx = %d\n \
+            //             is_border = %d\n \
+            //             u_next_val = %f\n \
+            //             shmem[prev_idx] = %f\n \
+            //             shmem[double_prev_idx] = %f\n \
+            //             shmem[prev_idx - 1] = %f\n \
+            //             shmem[prev_idx + 1] = %f\n \
+            //             shmem[prev_idx - total_tile_dim_x] = %f\n \
+            //             shmem[prev_idx + total_tile_dim_x] = %f\n",
+            //         blockIdx.x, blockIdx.y, threadIdx.x, threadIdx.y,
+            //         block_final_compute_start_x, block_final_compute_start_y,
+            //         block_load_start_x, block_load_start_y,
+            //         block_compute_start_x, block_compute_start_y,
+            //         thread_compute_x, thread_compute_y,
+            //         thread_compute_y * n_cells_x + thread_compute_x,
+            //         idx_step + local_timestep,
+            //         x_rel_load_block, y_rel_load_block,
+            //         shmem_local_idx,
+            //         double_prev_idx, prev_idx, curr_idx,
+            //         is_border,
+            //         u_next_val,
+            //         shmem[prev_idx],
+            //         shmem[double_prev_idx],
+            //         shmem[prev_idx - 1],
+            //         shmem[prev_idx + 1],
+            //         shmem[prev_idx - total_tile_dim_x],
+            //         shmem[prev_idx + total_tile_dim_x]);
+            // }
         }
 
         __syncthreads();
@@ -427,10 +428,10 @@ __global__ void wave_gpu_shmem_multistep(
         //     printf("writing back u0[%d] = %f\n", global_idx, u0[global_idx]);
         // }
 
-        if (global_idx == DEBUG_IDX) {
-            assert(thread_loadstore_x == DEBUG_IDX_X && thread_loadstore_y == DEBUG_IDX_Y);
-            printf("GPU writing back on macro-iter-start %d: extra0[%d] = %f by reading shmem[%d] = %f\n", idx_step, global_idx, extra0[global_idx], curr_shmem_idx, shmem[curr_shmem_idx]);
-        }
+        // if (global_idx == DEBUG_IDX) {
+        //     assert(thread_loadstore_x == DEBUG_IDX_X && thread_loadstore_y == DEBUG_IDX_Y);
+        //     printf("GPU writing back on macro-iter-start %d: extra0[%d] = %f by reading shmem[%d] = %f\n", idx_step, global_idx, extra0[global_idx], curr_shmem_idx, shmem[curr_shmem_idx]);
+        // }
 
         // write back prev results into extra1
         int prev_shmem_idx = prev_modulo_idx * arr_shmem_size_elements + local_idx;
@@ -487,16 +488,16 @@ std::pair<float *, float *> wave_gpu_shmem(
     dim3 num_blocks(NUM_TILES_X, NUM_TILES_Y);
     dim3 block_size(TOTAL_TILE_DIM_X, TOTAL_TILE_DIM_Y);
 
-    std::cout << "Img x: " << Scene::n_cells_x << std::endl;
-    std::cout << "Img y: " << Scene::n_cells_y << std::endl;
-    std::cout << "Total tile dim x: " << TOTAL_TILE_DIM_X << std::endl;
-    std::cout << "Total tile dim y: " << TOTAL_TILE_DIM_Y << std::endl;
-    std::cout << "Useful tile dim x: " << USEFUL_TILE_DIM_X << std::endl;
-    std::cout << "Useful tile dim y: " << USEFUL_TILE_DIM_Y << std::endl;
-    std::cout << "Num tiles x: " << NUM_TILES_X << std::endl;
-    std::cout << "Num tiles y: " << NUM_TILES_Y << std::endl;
-    std::cout << "Time steps per kernel: " << TIMESTEPS_PER_KERNEL << std::endl;
-    std::cout << "N steps: " << n_steps << std::endl;
+    // std::cout << "Img x: " << Scene::n_cells_x << std::endl;
+    // std::cout << "Img y: " << Scene::n_cells_y << std::endl;
+    // std::cout << "Total tile dim x: " << TOTAL_TILE_DIM_X << std::endl;
+    // std::cout << "Total tile dim y: " << TOTAL_TILE_DIM_Y << std::endl;
+    // std::cout << "Useful tile dim x: " << USEFUL_TILE_DIM_X << std::endl;
+    // std::cout << "Useful tile dim y: " << USEFUL_TILE_DIM_Y << std::endl;
+    // std::cout << "Num tiles x: " << NUM_TILES_X << std::endl;
+    // std::cout << "Num tiles y: " << NUM_TILES_Y << std::endl;
+    // std::cout << "Time steps per kernel: " << TIMESTEPS_PER_KERNEL << std::endl;
+    // std::cout << "N steps: " << n_steps << std::endl;
 
     int shmem_size_bytes = 3 * sizeof(float) * TOTAL_TILE_DIM_X * TOTAL_TILE_DIM_Y;
     CUDA_CHECK(cudaFuncSetAttribute(wave_gpu_shmem_multistep<Scene>,
@@ -512,9 +513,9 @@ std::pair<float *, float *> wave_gpu_shmem(
         std::swap(u0, extra1);
         std::swap(u1, extra0);
 
-        if (idx_step == DEBUG_ITER_NEXT) {
-            break;
-        }
+        // if (idx_step == DEBUG_ITER_NEXT) {
+        //     break;
+        // }
     }
 
     return {u0, u1};
@@ -923,19 +924,19 @@ double rel_rmse(std::vector<float> const &a, std::vector<float> const &b) {
     for (size_t i = 0; i < a.size(); ++i) {
         ref_sum += double(a.at(i)) * double(a.at(i));
         double diff = double(a.at(i)) - double(b.at(i));
-        if (std::abs(diff) > 1e-6) {
-            std::cout << "DIFF ref[" << i << "] = " << a.at(i) << ", b[" << i << "] = " << b.at(i) << ", diff = " << diff << std::endl;
-        }
+        // if (std::abs(diff) > 1e-6) {
+        //     std::cout << "DIFF ref[" << i << "] = " << a.at(i) << ", b[" << i << "] = " << b.at(i) << ", diff = " << diff << std::endl;
+        // }
         // if (i == DEBUG_IDX) {
         //     std::cout << "ref[" << i << "] = " << a.at(i) << ", b[" << i << "] = " << b.at(i) << ", diff = " << diff << std::endl;
         // }
         sum += diff * diff;
     }
-    if (ref_sum == 0.0 && sum == 0.0) {
-        std::cout << "ref_sum and sum are 0, returning 0" << std::endl;
-        return 0.0;
-    }
-    std::cout << "sum = " << sum << ", ref_sum = " << ref_sum << std::endl;
+    // if (ref_sum == 0.0 && sum == 0.0) {
+    //     std::cout << "ref_sum and sum are 0, returning 0" << std::endl;
+    //     return 0.0;
+    // }
+    // std::cout << "sum = " << sum << ", ref_sum = " << ref_sum << std::endl;
     return sqrt(sum / a.size()) / sqrt(ref_sum / a.size());
 }
 
@@ -1088,23 +1089,23 @@ int main(int argc, char **argv) {
 
         // std::cout << "cpu_results.u0_final[DEBUG_IDX] = " << cpu_results.u0_final[DEBUG_IDX] << std::endl;
 
-        // // GPU: wave_gpu_naive.
-        // auto gpu_naive_results =
-        //     run_gpu_no_extra<Scene>(0.0f, n_steps, 1, 1, wave_gpu_naive<Scene>);
-        // writeBMP(
-        //     "out/wave_gpu_naive_small_scale.bmp",
-        //     Scene::n_cells_x,
-        //     Scene::n_cells_y,
-        //     render_wave<Scene>(gpu_naive_results.u0_final.data()));
-        // double naive_rel_rmse =
-        //     rel_rmse(cpu_results.u0_final, gpu_naive_results.u0_final);
-        // if (naive_rel_rmse < tolerance) {
-        //     gpu_naive_correct = true;
-        // }
-        // printf("  GPU naive implementation:\n");
-        // printf("    run time: %.2f ms\n", gpu_naive_results.time_ms);
-        // printf("    correctness: %.2e relative RMSE\n", naive_rel_rmse);
-        // printf("\n");
+        // GPU: wave_gpu_naive.
+        auto gpu_naive_results =
+            run_gpu_no_extra<Scene>(0.0f, n_steps, 1, 1, wave_gpu_naive<Scene>);
+        writeBMP(
+            "out/wave_gpu_naive_small_scale.bmp",
+            Scene::n_cells_x,
+            Scene::n_cells_y,
+            render_wave<Scene>(gpu_naive_results.u0_final.data()));
+        double naive_rel_rmse =
+            rel_rmse(cpu_results.u0_final, gpu_naive_results.u0_final);
+        if (naive_rel_rmse < tolerance) {
+            gpu_naive_correct = true;
+        }
+        printf("  GPU naive implementation:\n");
+        printf("    run time: %.2f ms\n", gpu_naive_results.time_ms);
+        printf("    correctness: %.2e relative RMSE\n", naive_rel_rmse);
+        printf("\n");
 
         // GPU: wave_gpu_shmem.
         auto gpu_shmem_results =
