@@ -290,14 +290,14 @@ __global__ void wave_gpu_shmem_multistep(
     
         // load u0 into first item in shared memory
         int u0_shmem_idx = 0 * arr_shmem_size_elements + local_idx;
-        assert(u0_shmem_idx >= 0 && u0_shmem_idx < total_shmem_size_elements);
-        assert(global_idx >= 0 && global_idx < n_cells_x * n_cells_y);
+        // assert(u0_shmem_idx >= 0 && u0_shmem_idx < total_shmem_size_elements);
+        // assert(global_idx >= 0 && global_idx < n_cells_x * n_cells_y);
         shmem[u0_shmem_idx] = u0[global_idx];
 
         // load u1 into second item in shared memory
         int u1_shmem_idx = 1 * arr_shmem_size_elements + local_idx;
-        assert(u1_shmem_idx >= 0 && u1_shmem_idx < total_shmem_size_elements);
-        assert(global_idx >= 0 && global_idx < n_cells_x * n_cells_y);
+        // assert(u1_shmem_idx >= 0 && u1_shmem_idx < total_shmem_size_elements);
+        // assert(global_idx >= 0 && global_idx < n_cells_x * n_cells_y);
         shmem[u1_shmem_idx] = u1[global_idx];
 
         // // load extra0 into third item in shared memory
@@ -327,10 +327,13 @@ __global__ void wave_gpu_shmem_multistep(
         //     printf("INBOUNDS(thread_compute_x, thread_compute_y) = %d\n", INBOUNDS(thread_compute_x, thread_compute_y));
         // }
 
+        int cur_compute_tile_dim_x = total_tile_dim_x - 2 * (local_timestep + 1);
+        int cur_compute_tile_dim_y = total_tile_dim_y - 2 * (local_timestep + 1);
+        bool within_cur_timestep_compute_tile = threadIdx.x < cur_compute_tile_dim_x && threadIdx.y < cur_compute_tile_dim_y;
         // bool within_cur_timestep_compute_tile = threadIdx.x < useful_tile_dim_x + (timesteps_per_kernel - local_timestep - 1) && 
         //                                         threadIdx.y < useful_tile_dim_y + (timesteps_per_kernel - local_timestep - 1);
-        // if (INBOUNDS(thread_compute_x, thread_compute_y) && within_cur_timestep_compute_tile) {
-        if (INBOUNDS(thread_compute_x, thread_compute_y)) {
+        if (INBOUNDS(thread_compute_x, thread_compute_y) && within_cur_timestep_compute_tile) {
+        // if (INBOUNDS(thread_compute_x, thread_compute_y)) {
             int32_t x_rel_load_block = local_timestep + 1 + threadIdx.x;
             int32_t y_rel_load_block = local_timestep + 1 + threadIdx.y;
             int32_t shmem_local_idx = y_rel_load_block * total_tile_dim_x + x_rel_load_block;
@@ -355,6 +358,12 @@ __global__ void wave_gpu_shmem_multistep(
             } else {
                 constexpr float coeff = c * c * dt * dt / (dx * dx);
                 float damping = Scene::damping(thread_compute_x, thread_compute_y);
+                // assert(prev_idx >= 0 && prev_idx < total_shmem_size_elements);
+                // assert(double_prev_idx >= 0 && double_prev_idx < total_shmem_size_elements);
+                // assert(prev_idx - 1 >= 0 && prev_idx - 1 < total_shmem_size_elements);
+                // assert(prev_idx + 1 >= 0 && prev_idx + 1 < total_shmem_size_elements);
+                // assert(prev_idx - total_tile_dim_x >= 0 && prev_idx - total_tile_dim_x < total_shmem_size_elements);
+                // assert(prev_idx + total_tile_dim_x >= 0 && prev_idx + total_tile_dim_x < total_shmem_size_elements);
                 u_next_val =
                     ((2.0f - damping - 4.0f * coeff) * shmem[prev_idx] -
                         (1.0f - damping) * shmem[double_prev_idx] +
@@ -365,9 +374,9 @@ __global__ void wave_gpu_shmem_multistep(
                 //     printf("GPU doing real math\n");
                 // }
             }
-            shmem[curr_idx] = u_next_val;
 
             // if (idx_step + local_timestep == DEBUG_ITER && thread_compute_x == DEBUG_IDX_X && thread_compute_y == DEBUG_IDX_Y) {
+            // if (curr_idx < 0 || curr_idx >= total_shmem_size_elements) {
             //     printf("blockIdx.x = %d, blockIdx.y = %d, threadIdx.x = %d, threadIdx.y = %d\n \
             //             block_final_compute_start_x = %d, block_final_compute_start_y = %d\n \
             //             block_load_start_x = %d, block_load_start_y = %d\n \
@@ -404,6 +413,9 @@ __global__ void wave_gpu_shmem_multistep(
             //         shmem[prev_idx - total_tile_dim_x],
             //         shmem[prev_idx + total_tile_dim_x]);
             // }
+
+            // assert(curr_idx >= 0 && curr_idx < total_shmem_size_elements);
+            shmem[curr_idx] = u_next_val;
         }
 
         __syncthreads();
@@ -422,6 +434,8 @@ __global__ void wave_gpu_shmem_multistep(
 
         // write back cur results into extra0
         int curr_shmem_idx = curr_modulo_idx * arr_shmem_size_elements + local_idx;
+        // assert(curr_shmem_idx >= 0 && curr_shmem_idx < total_shmem_size_elements);
+        // assert(global_idx >= 0 && global_idx < n_cells_x * n_cells_y);
         extra0[global_idx] = shmem[curr_shmem_idx];
 
         // if (block_final_compute_start_x == 0 && block_final_compute_start_y == 0) {
@@ -435,6 +449,8 @@ __global__ void wave_gpu_shmem_multistep(
 
         // write back prev results into extra1
         int prev_shmem_idx = prev_modulo_idx * arr_shmem_size_elements + local_idx;
+        // assert(prev_shmem_idx >= 0 && prev_shmem_idx < total_shmem_size_elements);
+        // assert(global_idx >= 0 && global_idx < n_cells_x * n_cells_y);
         extra1[global_idx] = shmem[prev_shmem_idx];
     }
 
@@ -479,9 +495,10 @@ std::pair<float *, float *> wave_gpu_shmem(
 ) {
     int TOTAL_TILE_DIM_X = 32;
     int TOTAL_TILE_DIM_Y = 32;
-    int TIMESTEPS_PER_KERNEL = 2;
+    int TIMESTEPS_PER_KERNEL = 4;
     int USEFUL_TILE_DIM_X = TOTAL_TILE_DIM_X - 2 * TIMESTEPS_PER_KERNEL;
     int USEFUL_TILE_DIM_Y = TOTAL_TILE_DIM_Y - 2 * TIMESTEPS_PER_KERNEL;
+    assert(USEFUL_TILE_DIM_X > 0 && USEFUL_TILE_DIM_Y > 0);
     int NUM_TILES_X = ceil(Scene::n_cells_x / (float)USEFUL_TILE_DIM_X);
     int NUM_TILES_Y = ceil(Scene::n_cells_y / (float)USEFUL_TILE_DIM_Y);
 
